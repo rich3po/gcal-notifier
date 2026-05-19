@@ -1,9 +1,28 @@
 # macOS menu bar app showing the next Google Calendar meeting
+import subprocess
+import urllib.parse
+import webbrowser
+from datetime import datetime, timezone
+
 import rumps
 
 from calendar_client import CalendarSetupError, get_credentials, get_next_event
 
 MAX_TITLE_LEN = 20
+
+
+def format_countdown(start: datetime) -> str:
+    """Return a bracketed countdown string to the given start datetime."""
+    now = datetime.now(timezone.utc)
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=timezone.utc)
+    delta_minutes = int((start - now).total_seconds() // 60)
+    if delta_minutes <= 0:
+        return "[now]"
+    hours, minutes = divmod(delta_minutes, 60)
+    if hours == 0:
+        return f"[{minutes}m]"
+    return f"[{hours}h {minutes:02d}m]"
 
 
 def format_next_event(event: dict) -> str:
@@ -21,7 +40,24 @@ def format_next_event(event: dict) -> str:
     else:
         local_start = start.astimezone()
     time_str = local_start.strftime("%-I:%M %p")
-    return f"{title} · {time_str}"
+    return f"{title} · {time_str} {format_countdown(start)}"
+
+
+def _to_zoom_app_url(https_url: str) -> str:
+    """Convert a Zoom HTTPS join URL to a zoommtg:// URL to open the desktop app."""
+    parsed = urllib.parse.urlparse(https_url)
+    meeting_id = parsed.path.lstrip("/j/").split("/")[0]
+    params = urllib.parse.parse_qs(parsed.query)
+    query = f"action=join&confno={meeting_id}"
+    if "pwd" in params:
+        query += f"&pwd={params['pwd'][0]}"
+    return f"zoommtg://{parsed.netloc}/join?{query}"
+
+
+def _to_teams_app_url(https_url: str) -> str:
+    """Convert a Teams HTTPS join URL to a msteams:// URL to open the desktop app."""
+    return https_url.replace("https://", "msteams://", 1)
+
 
 
 class MeetingsApp(rumps.App):
@@ -29,7 +65,9 @@ class MeetingsApp(rumps.App):
 
     def __init__(self):
         super().__init__("Meetings", title="Loading…")
-        self.menu = ["Refresh", None, "Quit"]
+        self.menu = [None, "Quit"]
+        self._zoom_link = None
+        self._teams_link = None
 
         try:
             get_credentials()
@@ -39,28 +77,55 @@ class MeetingsApp(rumps.App):
 
         self.refresh_meeting()
 
-    @rumps.clicked("Refresh")
-    def refresh_clicked(self, _):
-        self.refresh_meeting()
+    @rumps.clicked("Join Zoom")
+    def join_zoom_clicked(self, _):
+        if self._zoom_link:
+            subprocess.run(["open", _to_zoom_app_url(self._zoom_link)])
+
+    @rumps.clicked("Join Teams")
+    def join_teams_clicked(self, _):
+        if self._teams_link:
+            webbrowser.open(_to_teams_app_url(self._teams_link))
 
     @rumps.timer(60)  # refresh every 60 seconds
     def refresh_timer(self, _):
         self.refresh_meeting()
+
+    def _update_meeting_menu_items(self, zoom_link: str | None, teams_link: str | None):
+        """Add or remove Join Zoom / Join Teams menu items based on available links."""
+        self._zoom_link = zoom_link
+        self._teams_link = teams_link
+        for key, label in (("Join Zoom", "Join Zoom"), ("Join Teams", "Join Teams")):
+            has_link = zoom_link if key == "Join Zoom" else teams_link
+            if has_link:
+                if key not in self.menu:
+                    self.menu.insert_before("Quit", rumps.MenuItem(label))
+            else:
+                if key in self.menu:
+                    del self.menu[key]
 
     def refresh_meeting(self):
         try:
             event = get_next_event()
         except CalendarSetupError:
             self.title = "Set up calendar"
+            self._update_meeting_menu_items(None, None)
         except Exception:
             self.title = "Calendar error"
+            self._update_meeting_menu_items(None, None)
         else:
             if event is None:
                 self.title = "No meetings"
+                self._update_meeting_menu_items(None, None)
             else:
                 self.title = format_next_event(event)
+                self._update_meeting_menu_items(event["zoom_link"], event["teams_link"])
 
 
 # Start the app when run as a script
 if __name__ == "__main__":
+    import AppKit
+    AppKit.NSApplication.sharedApplication().setActivationPolicy_(
+        AppKit.NSApplicationActivationPolicyAccessory
+    )
     MeetingsApp().run()

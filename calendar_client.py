@@ -1,5 +1,6 @@
 """Google Calendar read-only access and next-event lookup."""
 
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -51,6 +52,54 @@ def _parse_event_start(start: dict) -> tuple[datetime, bool]:
     return dt, True
 
 
+def _extract_zoom_link(event: dict) -> str | None:
+    """Return the Zoom join URL from an event, or None if not a Zoom call.
+
+    Checks in priority order:
+    1. conferenceData.entryPoints (Zoom Google Calendar Add-On)
+    2. location field (bare URL)
+    3. description field (HTML/text body)
+    """
+    zoom_re = re.compile(r"https://[a-z0-9.]*zoom\.us/j/[^\s\"'<>]+")
+
+    # 1. Structured conferenceData (most reliable)
+    for entry in event.get("conferenceData", {}).get("entryPoints", []):
+        if entry.get("entryPointType") == "video":
+            uri = entry.get("uri", "")
+            if zoom_re.match(uri):
+                return uri
+
+    # 2. location field
+    location = event.get("location", "")
+    match = zoom_re.search(location)
+    if match:
+        return match.group()
+
+    # 3. description field (may be HTML)
+    description = event.get("description", "")
+    match = zoom_re.search(description)
+    if match:
+        return match.group()
+
+    return None
+
+
+def _extract_teams_link(event: dict) -> str | None:
+    """Return the MS Teams join URL from an event, or None if not a Teams call.
+
+    Teams links appear in description and/or location as
+    https://teams.microsoft.com/l/meetup-join/...
+    """
+    teams_re = re.compile(r"https://teams\.microsoft\.com/l/meetup-join/[^\s\"'<>]+")
+
+    for field in (event.get("location", ""), event.get("description", "")):
+        match = teams_re.search(field)
+        if match:
+            return match.group()
+
+    return None
+
+
 def get_next_event() -> dict | None:
     """Return the next upcoming primary-calendar event, or None."""
     creds = get_credentials()
@@ -62,7 +111,7 @@ def get_next_event() -> dict | None:
         .list(
             calendarId="primary",
             timeMin=now,
-            maxResults=1,
+            maxResults=10,
             singleEvents=True,
             orderBy="startTime",
         )
@@ -70,13 +119,15 @@ def get_next_event() -> dict | None:
     )
 
     items = result.get("items", [])
-    if not items:
-        return None
-
-    event = items[0]
-    start, all_day = _parse_event_start(event["start"])
-    return {
-        "summary": event.get("summary", "(No title)"),
-        "start": start,
-        "all_day": all_day,
-    }
+    for event in items:
+        start, all_day = _parse_event_start(event["start"])
+        if all_day:
+            continue
+        return {
+            "summary": event.get("summary", "(No title)"),
+            "start": start,
+            "all_day": all_day,
+            "zoom_link": _extract_zoom_link(event),
+            "teams_link": _extract_teams_link(event),
+        }
+    return None
