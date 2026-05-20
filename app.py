@@ -65,7 +65,11 @@ class MeetingsApp(rumps.App):
 
     def __init__(self):
         super().__init__("Meetings", title="Loading…")
-        self.menu = [None, "Quit"]
+        self.menu = [None]
+        self._separator_key = next(
+            k for k, v in self.menu.items()
+            if not hasattr(v, 'title')
+        )
         self._zoom_link = None
         self._teams_link = None
 
@@ -77,12 +81,10 @@ class MeetingsApp(rumps.App):
 
         self.refresh_meeting()
 
-    @rumps.clicked("Join Zoom")
     def join_zoom_clicked(self, _):
         if self._zoom_link:
             subprocess.run(["open", _to_zoom_app_url(self._zoom_link)])
 
-    @rumps.clicked("Join Teams")
     def join_teams_clicked(self, _):
         if self._teams_link:
             webbrowser.open(_to_teams_app_url(self._teams_link))
@@ -99,7 +101,8 @@ class MeetingsApp(rumps.App):
             has_link = zoom_link if key == "Join Zoom" else teams_link
             if has_link:
                 if key not in self.menu:
-                    self.menu.insert_before("Quit", rumps.MenuItem(label))
+                    callback = self.join_zoom_clicked if key == "Join Zoom" else self.join_teams_clicked
+                    self.menu.insert_after(self._separator_key, rumps.MenuItem(label, callback=callback))
             else:
                 if key in self.menu:
                     del self.menu[key]
