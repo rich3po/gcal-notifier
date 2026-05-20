@@ -100,6 +100,14 @@ def _extract_teams_link(event: dict) -> str | None:
     return None
 
 
+def _is_declined(event: dict) -> bool:
+    """Return True if the authenticated user has declined this event."""
+    for attendee in event.get("attendees", []):
+        if attendee.get("self") and attendee.get("responseStatus") == "declined":
+            return True
+    return False
+
+
 def get_next_event() -> dict | None:
     """Return the next upcoming primary-calendar event, or None."""
     creds = get_credentials()
@@ -123,6 +131,8 @@ def get_next_event() -> dict | None:
     for event in items:
         start, all_day = _parse_event_start(event["start"])
         if all_day:
+            continue
+        if _is_declined(event):
             continue
         timed_events.append((start, event))
         if len(timed_events) == 2:
