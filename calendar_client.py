@@ -113,12 +113,17 @@ def get_next_event() -> dict | None:
     creds = get_credentials()
     service = build("calendar", "v3", credentials=creds)
 
-    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    now_dt = datetime.now().astimezone()
+    now = now_dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    end_of_today = now_dt.replace(
+        hour=23, minute=59, second=59, microsecond=999999
+    ).astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     result = (
         service.events()
         .list(
             calendarId="primary",
             timeMin=now,
+            timeMax=end_of_today,
             maxResults=10,
             singleEvents=True,
             orderBy="startTime",
@@ -141,7 +146,7 @@ def get_next_event() -> dict | None:
     if not timed_events:
         return None
 
-    now_dt = datetime.now(timezone.utc)
+    now_dt = now_dt.astimezone(timezone.utc)
     first_start, first_event = timed_events[0]
 
     if len(timed_events) == 2:
