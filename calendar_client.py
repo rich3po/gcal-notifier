@@ -119,15 +119,32 @@ def get_next_event() -> dict | None:
     )
 
     items = result.get("items", [])
+    timed_events = []
     for event in items:
         start, all_day = _parse_event_start(event["start"])
         if all_day:
             continue
-        return {
-            "summary": event.get("summary", "(No title)"),
-            "start": start,
-            "all_day": all_day,
-            "zoom_link": _extract_zoom_link(event),
-            "teams_link": _extract_teams_link(event),
-        }
-    return None
+        timed_events.append((start, event))
+        if len(timed_events) == 2:
+            break
+
+    if not timed_events:
+        return None
+
+    now_dt = datetime.now(timezone.utc)
+    first_start, first_event = timed_events[0]
+
+    if len(timed_events) == 2:
+        second_start, second_event = timed_events[1]
+        first_is_active = first_start <= now_dt
+        next_starts_soon = (second_start - now_dt).total_seconds() <= 900
+        if first_is_active and next_starts_soon:
+            first_start, first_event = second_start, second_event
+
+    return {
+        "summary": first_event.get("summary", "(No title)"),
+        "start": first_start,
+        "all_day": False,
+        "zoom_link": _extract_zoom_link(first_event),
+        "teams_link": _extract_teams_link(first_event),
+    }
