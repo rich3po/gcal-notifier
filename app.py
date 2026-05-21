@@ -65,11 +65,8 @@ class MeetingsApp(rumps.App):
 
     def __init__(self):
         super().__init__("Meetings", title="Loading…")
-        self.menu = [None]
-        self._separator_key = next(
-            k for k, v in self.menu.items()
-            if not hasattr(v, 'title')
-        )
+        if "Quit" in self.menu:
+            del self.menu["Quit"]
         self._zoom_link = None
         self._teams_link = None
         self._html_link = None
@@ -99,26 +96,20 @@ class MeetingsApp(rumps.App):
         self.refresh_meeting()
 
     def _update_meeting_menu_items(self, zoom_link: str | None, teams_link: str | None, html_link: str | None = None):
-        """Rebuild dynamic meeting menu items from scratch."""
+        """Rebuild the menu from scratch on every refresh."""
         self._zoom_link = zoom_link
         self._teams_link = teams_link
         self._html_link = html_link
 
-        # Remove all dynamic items
-        for key in ("Join Zoom", "Join Teams", "View in calendar"):
-            if key in self.menu:
-                del self.menu[key]
+        self.menu.clear()
 
-        # Re-add in order: Join Zoom, Join Teams, View in calendar
-        last_anchor = self._separator_key
         if zoom_link:
-            self.menu.insert_after(last_anchor, rumps.MenuItem("Join Zoom", callback=self.join_zoom_clicked))
-            last_anchor = "Join Zoom"
+            self.menu.add(rumps.MenuItem("Join Zoom", callback=self.join_zoom_clicked))
         if teams_link:
-            self.menu.insert_after(last_anchor, rumps.MenuItem("Join Teams", callback=self.join_teams_clicked))
-            last_anchor = "Join Teams"
+            self.menu.add(rumps.MenuItem("Join Teams", callback=self.join_teams_clicked))
         if html_link:
-            self.menu.insert_after(last_anchor, rumps.MenuItem("View in calendar", callback=self.view_in_calendar_clicked))
+            self.menu.add(rumps.MenuItem("View in calendar", callback=self.view_in_calendar_clicked))
+        self.menu.add(rumps.MenuItem("Quit", callback=rumps.quit_application))
 
     def refresh_meeting(self):
         try:
