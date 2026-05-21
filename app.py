@@ -118,7 +118,7 @@ class MeetingsApp(rumps.App):
             self._update_meeting_menu_items(None, None)
         else:
             if event is None:
-                self.title = "No meetings"
+                self.title = "(No meetings)"
                 self._update_meeting_menu_items(None, None)
             else:
                 self.title = format_next_event(event)
