@@ -162,4 +162,5 @@ def get_next_event() -> dict | None:
         "all_day": False,
         "zoom_link": _extract_zoom_link(first_event),
         "teams_link": _extract_teams_link(first_event),
+        "html_link": first_event.get("htmlLink"),
     }

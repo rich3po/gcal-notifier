@@ -72,6 +72,7 @@ class MeetingsApp(rumps.App):
         )
         self._zoom_link = None
         self._teams_link = None
+        self._html_link = None
 
         try:
             get_credentials()
@@ -89,40 +90,52 @@ class MeetingsApp(rumps.App):
         if self._teams_link:
             webbrowser.open(_to_teams_app_url(self._teams_link))
 
+    def view_in_calendar_clicked(self, _):
+        if self._html_link:
+            webbrowser.open(self._html_link)
+
     @rumps.timer(60)  # refresh every 60 seconds
     def refresh_timer(self, _):
         self.refresh_meeting()
 
-    def _update_meeting_menu_items(self, zoom_link: str | None, teams_link: str | None):
-        """Add or remove Join Zoom / Join Teams menu items based on available links."""
+    def _update_meeting_menu_items(self, zoom_link: str | None, teams_link: str | None, html_link: str | None = None):
+        """Rebuild dynamic meeting menu items from scratch."""
         self._zoom_link = zoom_link
         self._teams_link = teams_link
-        for key, label in (("Join Zoom", "Join Zoom"), ("Join Teams", "Join Teams")):
-            has_link = zoom_link if key == "Join Zoom" else teams_link
-            if has_link:
-                if key not in self.menu:
-                    callback = self.join_zoom_clicked if key == "Join Zoom" else self.join_teams_clicked
-                    self.menu.insert_after(self._separator_key, rumps.MenuItem(label, callback=callback))
-            else:
-                if key in self.menu:
-                    del self.menu[key]
+        self._html_link = html_link
+
+        # Remove all dynamic items
+        for key in ("Join Zoom", "Join Teams", "View in calendar"):
+            if key in self.menu:
+                del self.menu[key]
+
+        # Re-add in order: Join Zoom, Join Teams, View in calendar
+        last_anchor = self._separator_key
+        if zoom_link:
+            self.menu.insert_after(last_anchor, rumps.MenuItem("Join Zoom", callback=self.join_zoom_clicked))
+            last_anchor = "Join Zoom"
+        if teams_link:
+            self.menu.insert_after(last_anchor, rumps.MenuItem("Join Teams", callback=self.join_teams_clicked))
+            last_anchor = "Join Teams"
+        if html_link:
+            self.menu.insert_after(last_anchor, rumps.MenuItem("View in calendar", callback=self.view_in_calendar_clicked))
 
     def refresh_meeting(self):
         try:
             event = get_next_event()
         except CalendarSetupError:
             self.title = "Set up calendar"
-            self._update_meeting_menu_items(None, None)
+            self._update_meeting_menu_items(None, None, None)
         except Exception:
             self.title = "Calendar error"
-            self._update_meeting_menu_items(None, None)
+            self._update_meeting_menu_items(None, None, None)
         else:
             if event is None:
                 self.title = "(No meetings)"
-                self._update_meeting_menu_items(None, None)
+                self._update_meeting_menu_items(None, None, None)
             else:
                 self.title = format_next_event(event)
-                self._update_meeting_menu_items(event["zoom_link"], event["teams_link"])
+                self._update_meeting_menu_items(event["zoom_link"], event["teams_link"], event["html_link"])
 
 
 # Start the app when run as a script
