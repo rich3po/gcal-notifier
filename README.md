@@ -62,7 +62,7 @@ python app.py
 ```
 
 - The menubar shows the next meeting, e.g. `Standup · 2:30 PM`.
-- Click the menubar item → **Refresh** to update immediately, or **Quit** to exit.
+- Click the menubar item → **Join meetings** directly, or **View in calendar**.
 - Updates automatically every 60 seconds.
 
 ## Manual verification
