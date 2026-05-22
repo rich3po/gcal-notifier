@@ -16,7 +16,7 @@ def format_countdown(start: datetime) -> str:
     now = datetime.now(timezone.utc)
     if start.tzinfo is None:
         start = start.replace(tzinfo=timezone.utc)
-    delta_minutes = int((start - now).total_seconds() // 60)
+    delta_minutes = int((start - now).total_seconds() // 60) + 1
     if delta_minutes <= 0:
         return "[now]"
     hours, minutes = divmod(delta_minutes, 60)
@@ -70,6 +70,7 @@ class MeetingsApp(rumps.App):
         self._zoom_link = None
         self._teams_link = None
         self._html_link = None
+        self._last_minute: int | None = None
 
         try:
             get_credentials()
@@ -77,6 +78,7 @@ class MeetingsApp(rumps.App):
             self.title = "Set up calendar"
             return
 
+        self._last_minute = datetime.now().minute
         self.refresh_meeting()
 
     def join_zoom_clicked(self, _):
@@ -91,9 +93,12 @@ class MeetingsApp(rumps.App):
         if self._html_link:
             webbrowser.open(self._html_link)
 
-    @rumps.timer(60)  # refresh every 60 seconds
+    @rumps.timer(1)  # poll every second, refresh on minute boundary
     def refresh_timer(self, _):
-        self.refresh_meeting()
+        current_minute = datetime.now().minute
+        if current_minute != self._last_minute:
+            self._last_minute = current_minute
+            self.refresh_meeting()
 
     def _update_meeting_menu_items(self, zoom_link: str | None, teams_link: str | None, html_link: str | None = None):
         """Rebuild the menu from scratch on every refresh."""
