@@ -1,4 +1,4 @@
-# Meetings menubar app
+# Google Calendar notifier app
 
 A macOS menu bar app that shows your **next upcoming Google Calendar meeting** (primary calendar). It refreshes every 60 seconds.
 
@@ -64,6 +64,22 @@ python app.py
 - The menubar shows the next meeting, e.g. `Standup · 2:30 PM`.
 - Click the menubar item → **Join meetings** directly, or **View in calendar**.
 - Updates automatically every 60 seconds.
+
+## Tests
+
+Unit tests live in [`tests/`](tests/) and run with [pytest](https://docs.pytest.org/).
+
+```bash
+source .venv/bin/activate
+pip install -r requirements-dev.txt   # one-time: installs runtime deps + pytest
+pytest
+```
+
+- `requirements-dev.txt` pulls in `requirements.txt` plus the test tooling.
+- The suite covers the pure helper functions (countdown/title formatting, Zoom &
+  Teams URL conversion, calendar event parsing) and a regression test guarding
+  against the duplicate "Quit" menu item at boot.
+- Tests run fully offline — no Google credentials or network access required.
 
 ## Manual verification
 
