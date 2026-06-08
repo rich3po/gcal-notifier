@@ -64,9 +64,9 @@ class MeetingsApp(rumps.App):
     """Menubar app showing the next upcoming Google Calendar meeting."""
 
     def __init__(self):
-        super().__init__("Meetings", title="Loading…")
-        if "Quit" in self.menu:
-            del self.menu["Quit"]
+        # quit_button=None: we add our own Quit on every menu rebuild,
+        # so tell rumps not to inject one automatically.
+        super().__init__("Meetings", title="Loading…", quit_button=None)
         self._zoom_link = None
         self._teams_link = None
         self._html_link = None
