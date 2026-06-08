@@ -46,7 +46,7 @@ def format_next_event(event: dict) -> str:
 def _to_zoom_app_url(https_url: str) -> str:
     """Convert a Zoom HTTPS join URL to a zoommtg:// URL to open the desktop app."""
     parsed = urllib.parse.urlparse(https_url)
-    meeting_id = parsed.path.lstrip("/j/").split("/")[0]
+    meeting_id = parsed.path.removeprefix("/j/").split("/")[0]
     params = urllib.parse.parse_qs(parsed.query)
     query = f"action=join&confno={meeting_id}"
     if "pwd" in params:
