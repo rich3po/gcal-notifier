@@ -65,6 +65,101 @@ python app.py
 - Click the menubar item → **Join meetings** directly, or **View in calendar**.
 - Updates automatically every 60 seconds.
 
+## Run at login (macOS LaunchAgent)
+
+To start the app automatically when you log in, install a
+[LaunchAgent](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html).
+A LaunchAgent (not a LaunchDaemon) runs in your GUI session, which a menu-bar app
+requires.
+
+### Quick install (recommended)
+
+[`install-launchagent.sh`](install-launchagent.sh) generates the plist with paths
+derived from the repo's location, validates it, and (re)loads it. Run it from
+anywhere after the venv is set up:
+
+```bash
+./install-launchagent.sh              # install and start at login
+./install-launchagent.sh --uninstall  # stop and remove
+```
+
+Re-running it is safe — it reloads in place, so use it again after pulling
+updates or moving the repo.
+
+### Manual install
+
+If you'd rather set it up by hand:
+
+1. Create `~/Library/LaunchAgents/com.richjones.gcal-notifier.plist`. **Use
+   absolute paths**, and set `WorkingDirectory` to the project root — `app.py`
+   reads `credentials.json` / `token.json` by relative path, so it must launch
+   from there.
+
+   ```xml
+   <?xml version="1.0" encoding="UTF-8"?>
+   <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+     "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+   <plist version="1.0">
+   <dict>
+       <key>Label</key>
+       <string>com.richjones.gcal-notifier</string>
+
+       <key>ProgramArguments</key>
+       <array>
+           <string>/Users/rich.jones/Code/gcal-notifier/.venv/bin/python</string>
+           <string>/Users/rich.jones/Code/gcal-notifier/app.py</string>
+       </array>
+
+       <!-- app.py reads credentials.json / token.json by relative path -->
+       <key>WorkingDirectory</key>
+       <string>/Users/rich.jones/Code/gcal-notifier</string>
+
+       <!-- start at login -->
+       <key>RunAtLoad</key>
+       <true/>
+
+       <!-- do NOT relaunch after the user quits from the menu -->
+       <key>KeepAlive</key>
+       <false/>
+
+       <key>StandardOutPath</key>
+       <string>/Users/rich.jones/Code/gcal-notifier/output.log</string>
+       <key>StandardErrorPath</key>
+       <string>/Users/rich.jones/Code/gcal-notifier/error.log</string>
+   </dict>
+   </plist>
+   ```
+
+2. Validate and load it (loading also starts it immediately, thanks to
+   `RunAtLoad`):
+
+   ```bash
+   plutil -lint ~/Library/LaunchAgents/com.richjones.gcal-notifier.plist
+   launchctl load -w ~/Library/LaunchAgents/com.richjones.gcal-notifier.plist
+   ```
+
+`RunAtLoad` starts the app at login; `KeepAlive` is `false` so quitting from the
+menu actually quits it until the next login (set it to `true` if you'd rather it
+always relaunch).
+
+### Managing the agent
+
+```bash
+launchctl start com.richjones.gcal-notifier   # start now (without re-login)
+launchctl stop  com.richjones.gcal-notifier   # quit now (same as the menu's Quit)
+
+# disable autostart entirely
+launchctl unload -w ~/Library/LaunchAgents/com.richjones.gcal-notifier.plist
+# re-enable
+launchctl load   -w ~/Library/LaunchAgents/com.richjones.gcal-notifier.plist
+
+launchctl list | grep gcal-notifier           # check status (PID, last exit code)
+```
+
+- After editing the plist, `unload` then `load` for changes to take effect.
+- Startup logs go to `output.log` / `error.log` in the project root.
+- If you move or rename the project folder, update the absolute paths and reload.
+
 ## Tests
 
 Unit tests live in [`tests/`](tests/) and run with [pytest](https://docs.pytest.org/).
