@@ -55,8 +55,12 @@ def _to_zoom_app_url(https_url: str) -> str:
 
 
 def _to_teams_app_url(https_url: str) -> str:
-    """Convert a Teams HTTPS join URL to a msteams:// URL to open the desktop app."""
-    return https_url.replace("https://", "msteams://", 1)
+    """Convert a Teams HTTPS join URL to an msteams: URL to open the desktop app.
+
+    The msteams: protocol handler expects the path only, without the
+    teams.microsoft.com host, e.g. msteams:/l/meetup-join/...
+    """
+    return https_url.replace("https://teams.microsoft.com", "msteams:", 1)
 
 
 
@@ -87,7 +91,7 @@ class MeetingsApp(rumps.App):
 
     def join_teams_clicked(self, _):
         if self._teams_link:
-            webbrowser.open(_to_teams_app_url(self._teams_link))
+            subprocess.run(["open", _to_teams_app_url(self._teams_link)])
 
     def view_in_calendar_clicked(self, _):
         if self._html_link:

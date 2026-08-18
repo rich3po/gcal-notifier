@@ -79,11 +79,11 @@ class TestToZoomAppUrl:
 class TestToTeamsAppUrl:
     def test_basic_conversion(self):
         url = "https://teams.microsoft.com/l/meetup-join/abc"
-        assert _to_teams_app_url(url) == "msteams://teams.microsoft.com/l/meetup-join/abc"
+        assert _to_teams_app_url(url) == "msteams:/l/meetup-join/abc"
 
-    def test_only_first_https_replaced(self):
+    def test_host_not_left_in_path(self):
         url = "https://teams.microsoft.com/l/x?u=https://other"
-        assert _to_teams_app_url(url) == "msteams://teams.microsoft.com/l/x?u=https://other"
+        assert _to_teams_app_url(url) == "msteams:/l/x?u=https://other"
 
 
 def _ns_titles(menu) -> list[str]:
