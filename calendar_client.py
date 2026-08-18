@@ -1,6 +1,8 @@
 """Google Calendar read-only access and next-event lookup."""
 
+import html
 import re
+import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -89,10 +91,27 @@ def _extract_teams_link(event: dict) -> str | None:
 
     Teams links appear in description and/or location as
     https://teams.microsoft.com/l/meetup-join/...
+
+    Google Calendar rewrites links in the HTML description as
+    https://www.google.com/url?q=<percent-encoded original>&sa=D&source=...
+    Handing Teams the encoded ``q`` value verbatim leaves the meeting id
+    double-encoded (``%253a`` instead of ``:``), so the app opens but can't
+    resolve the meeting. Unwrap the redirect and decode the URL once.
     """
     teams_re = re.compile(r"https://teams\.microsoft\.com/l/meetup-join/[^\s\"'<>]+")
 
     for field in (event.get("location", ""), event.get("description", "")):
+        field = html.unescape(field)
+
+        # Prefer a Google-wrapped link: decode its `q` param (once, leaving
+        # any '+' in the base64 meeting id intact) and take that.
+        for wrapped in re.finditer(r"[?&]q=([^&\s\"'<>]+)", field):
+            candidate = urllib.parse.unquote(wrapped.group(1))
+            match = teams_re.match(candidate)
+            if match:
+                return match.group()
+
+        # Fall back to a direct, unwrapped Teams URL.
         match = teams_re.search(field)
         if match:
             return match.group()

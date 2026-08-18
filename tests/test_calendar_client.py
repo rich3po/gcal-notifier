@@ -88,6 +88,21 @@ class TestExtractTeamsLink:
         event = {"location": loc, "description": desc}
         assert _extract_teams_link(event) == loc
 
+    def test_unwraps_google_redirect(self):
+        # Google Calendar wraps description links, double-encoding the URL and
+        # appending tracking params. We must recover the canonical Teams URL.
+        wrapped = (
+            "https://www.google.com/url?q=https://teams.microsoft.com/l/"
+            "meetup-join/19%253ameeting_abc%2540thread.v2/0?context%3d%257b"
+            "%2522Tid%2522%253a%2522t-1%2522%257d"
+            "&amp;sa=D&amp;source=calendar&amp;ust=1787400138236053&amp;usg=AOvVaw0"
+        )
+        event = {"description": f'<a href="{wrapped}">Join</a>'}
+        assert _extract_teams_link(event) == (
+            "https://teams.microsoft.com/l/meetup-join/19%3ameeting_abc"
+            "%40thread.v2/0?context=%7b%22Tid%22%3a%22t-1%22%7d"
+        )
+
     def test_no_teams_link(self):
         assert _extract_teams_link({}) is None
         assert _extract_teams_link({"location": "https://zoom.us/j/1"}) is None
