@@ -73,6 +73,7 @@ class MeetingsApp(rumps.App):
         super().__init__("Meetings", title="Loading…", quit_button=None)
         self._zoom_link = None
         self._teams_link = None
+        self._clari_link = None
         self._html_link = None
         self._last_minute: int | None = None
 
@@ -93,6 +94,10 @@ class MeetingsApp(rumps.App):
         if self._teams_link:
             subprocess.run(["open", _to_teams_app_url(self._teams_link)])
 
+    def join_clari_clicked(self, _):
+        if self._clari_link:
+            webbrowser.open(self._clari_link)
+
     def view_in_calendar_clicked(self, _):
         if self._html_link:
             webbrowser.open(self._html_link)
@@ -104,10 +109,11 @@ class MeetingsApp(rumps.App):
             self._last_minute = current_minute
             self.refresh_meeting()
 
-    def _update_meeting_menu_items(self, zoom_link: str | None, teams_link: str | None, html_link: str | None = None):
+    def _update_meeting_menu_items(self, zoom_link: str | None, teams_link: str | None, clari_link: str | None, html_link: str | None = None):
         """Rebuild the menu from scratch on every refresh."""
         self._zoom_link = zoom_link
         self._teams_link = teams_link
+        self._clari_link = clari_link
         self._html_link = html_link
 
         self.menu.clear()
@@ -116,6 +122,8 @@ class MeetingsApp(rumps.App):
             self.menu.add(rumps.MenuItem("Join Zoom", callback=self.join_zoom_clicked))
         if teams_link:
             self.menu.add(rumps.MenuItem("Join Teams", callback=self.join_teams_clicked))
+        if clari_link:
+            self.menu.add(rumps.MenuItem("Join Clari", callback=self.join_clari_clicked))
         if html_link:
             self.menu.add(rumps.MenuItem("View in calendar", callback=self.view_in_calendar_clicked))
         self.menu.add(rumps.MenuItem("Quit", callback=rumps.quit_application))
@@ -135,7 +143,7 @@ class MeetingsApp(rumps.App):
                 self._update_meeting_menu_items(None, None, None)
             else:
                 self.title = format_next_event(event)
-                self._update_meeting_menu_items(event["zoom_link"], event["teams_link"], event["html_link"])
+                self._update_meeting_menu_items(event["zoom_link"], event["teams_link"], event["clari_link"], event["html_link"])
 
 
 # Start the app when run as a script

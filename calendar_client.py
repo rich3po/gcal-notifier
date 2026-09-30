@@ -119,6 +119,22 @@ def _extract_teams_link(event: dict) -> str | None:
     return None
 
 
+def _extract_clari_link(event: dict) -> str | None:
+    """Return the Clari Copilot join URL from an event, or None.
+
+    Clari (go.copilot.clari.com) is a meeting intelligence platform that
+    presents a browser-based intermediate step before joining. The original
+    URL must be preserved and opened in a browser rather than resolved to
+    an underlying Zoom/Teams deep-link.
+    """
+    clari_re = re.compile(r"https://go\.copilot\.clari\.com/[^\s\"'<>]+")
+    for field in (event.get("location", ""), event.get("description", "")):
+        match = clari_re.search(html.unescape(field))
+        if match:
+            return match.group().rstrip("/")
+    return None
+
+
 def _is_declined(event: dict) -> bool:
     """Return True if the authenticated user has declined this event."""
     for attendee in event.get("attendees", []):
@@ -181,5 +197,6 @@ def get_next_event() -> dict | None:
         "all_day": False,
         "zoom_link": _extract_zoom_link(first_event),
         "teams_link": _extract_teams_link(first_event),
+        "clari_link": _extract_clari_link(first_event),
         "html_link": first_event.get("htmlLink"),
     }

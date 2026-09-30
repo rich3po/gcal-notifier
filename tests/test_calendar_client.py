@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 
 from calendar_client import (
+    _extract_clari_link,
     _extract_teams_link,
     _extract_zoom_link,
     _is_declined,
@@ -106,6 +107,31 @@ class TestExtractTeamsLink:
     def test_no_teams_link(self):
         assert _extract_teams_link({}) is None
         assert _extract_teams_link({"location": "https://zoom.us/j/1"}) is None
+
+
+class TestExtractClariLink:
+    def test_from_location(self):
+        url = "https://go.copilot.clari.com/zoom/95360504471/s/Ohob79o2"
+        assert _extract_clari_link({"location": url}) == url
+
+    def test_from_description(self):
+        url = "https://go.copilot.clari.com/zoom/12345/s/abc"
+        assert _extract_clari_link({"description": f'<a href="{url}">Join</a>'}) == url
+
+    def test_trailing_slash_stripped(self):
+        assert (
+            _extract_clari_link({"location": "https://go.copilot.clari.com/zoom/123/s/abc/"})
+            == "https://go.copilot.clari.com/zoom/123/s/abc"
+        )
+
+    def test_location_takes_priority_over_description(self):
+        loc = "https://go.copilot.clari.com/zoom/111/s/a"
+        desc = "https://go.copilot.clari.com/zoom/222/s/b"
+        assert _extract_clari_link({"location": loc, "description": desc}) == loc
+
+    def test_no_clari_link(self):
+        assert _extract_clari_link({}) is None
+        assert _extract_clari_link({"location": "https://us.zoom.us/j/999"}) is None
 
 
 class TestIsDeclined:
